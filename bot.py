@@ -20,7 +20,7 @@ def analizza_strumenti():
         indices = data.get('indices', {})
         live_info = data.get('live', {})
         
-        SOGLIA = 0.30  
+        SOGLIA = 0.70  
         DASHBOARD_URL = "https://tobiatidesca-art.github.io/dashboard-beta/" 
         moltiplicatori = {"SX50E": 10, "DAX": 25, "FTSEMIB": 5}
         nomi_strumenti = {"SX50E": "EUROSTOXX 50", "DAX": "DAX 40", "FTSEMIB": "FTSE MIB 🇮🇹"}
