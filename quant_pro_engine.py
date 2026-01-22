@@ -91,11 +91,6 @@ html_template = f"""
                 <select id="langS" onchange="run()" class="form-select bg-dark text-white border-secondary">
                     <option value="it">Italiano 🇮🇹</option>
                     <option value="en">English 🇬🇧</option>
-                    <option value="es">Español 🇪🇸</option>
-                    <option value="fr">Français 🇫🇷</option>
-                    <option value="de">Deutsch 🇩🇪</option>
-                    <option value="zh">中文 🇨🇳</option>
-                    <option value="ja">日本語 🇯🇵</option>
                 </select>
             </div>
             <div class="col-md-2 border-end border-secondary">
@@ -148,7 +143,7 @@ html_template = f"""
         </div>
     </div>
     <div class="card-custom mt-4 mx-3">
-        <h6 class="val-big-label mb-3">JOURNAL (REPAIRED HISTORY)</h6>
+        <h6 class="val-big-label mb-3">JOURNAL</h6>
         <div class="table-responsive" style="max-height: 400px;"><table class="table table-dark table-hover m-0"><thead><tr id="t-head"></tr></thead><tbody id="auditBody"></tbody></table></div>
     </div>
     <script>
@@ -156,38 +151,76 @@ html_template = f"""
         let myChart = null; let currentZoom = 0;
         const i18n = {{
             it: {{ kpi:["Profitto","Win Rate"], sig:["FLAT","LONG","SHORT"], cols:["DATA","TIPO","IN","OUT","PTI","PNL"] }},
-            en: {{ kpi:["Profit","Win Rate"], sig:["FLAT","LONG","SHORT"], cols:["DATE","TYPE","IN","OUT","PTS","PNL"] }},
-            es: {{ kpi:["Beneficio","Win Rate"], sig:["FLAT","LONG","SHORT"], cols:["FECHA","TIPO","IN","OUT","PTS","PNL"] }},
-            fr: {{ kpi:["Profit","Win Rate"], sig:["FLAT","LONG","SHORT"], cols:["DATE","TYPE","IN","OUT","PTS","PNL"] }},
-            de: {{ kpi:["Gewinn","Win Rate"], sig:["FLAT","LONG","SHORT"], cols:["DATUM","TYP","IN","OUT","PKT","PNL"] }},
-            zh: {{ kpi:["利润","胜率"], sig:["平仓","做多","做空"], cols:["日期","类型","入场","出场","点数","盈亏"] }},
-            ja: {{ kpi:["利益","勝率"], sig:["フラット","ロング","ショート"], cols:["日付","タイプ","入","出","ポイント","損益"] }}
+            en: {{ kpi:["Profit","Win Rate"], sig:["FLAT","LONG","SHORT"], cols:["DATE","TYPE","IN","OUT","PTS","PNL"] }}
         }};
         function setZoom(btn, days) {{ currentZoom = days; document.querySelectorAll('.zoom-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); run(); }}
         function run() {{
-            const asset = document.getElementById('assetS').value; const lang = document.getElementById('langS').value; const t = i18n[lang]; const thr = parseFloat(document.getElementById('thr').value) / 100; const assetData = data.indices[asset]; const live = data.live;
+            const asset = document.getElementById('assetS').value; 
+            const lang = document.getElementById('langS').value; 
+            const t = i18n[lang]; 
+            const thr = parseFloat(document.getElementById('thr').value); // SOGLIA 0.70
+            const assetData = data.indices[asset]; 
+            const live = data.live;
+
             document.getElementById('t-head').innerHTML = t.cols.map(c => `<th>${{c}}</th>`).join('');
-            const m = (live.sp_chg + live.nk_chg + live.fut_chg) / 300;
-            document.getElementById('mom-val').innerText = (m*100).toFixed(2) + "%";
+            
+            // Momentum calcolato come media dei 3 indici
+            const m = (live.sp_chg + live.nk_chg + live.fut_chg) / 3;
+            document.getElementById('mom-val').innerText = m.toFixed(2) + "%";
             document.getElementById('entry-val').innerText = "ENTRY: " + assetData.entry.toFixed(1);
+
             let s = t.sig[0]; let c = "#8b949e"; let blink = false;
-            if (m > thr && live.vix < 25) {{ s = t.sig[1] + " 🟢"; c = "#238636"; blink = true; }} else if (m < -thr && live.vix < 32) {{ s = t.sig[2] + " 🔴"; c = "#da3633"; blink = true; }}
+            // Confronto diretto tra momentum (es. 1.2) e soglia (es. 0.7)
+            if (m > thr && live.vix < 25) {{ s = t.sig[1] + " 🟢"; c = "#238636"; blink = true; }} 
+            else if (m < -thr && live.vix < 32) {{ s = t.sig[2] + " 🔴"; c = "#da3633"; blink = true; }}
+            
             const sigEl = document.getElementById('sig-val'); sigEl.innerText = s; sigEl.style.color = c;
             if(blink) sigEl.classList.add('blink-active'); else sigEl.classList.remove('blink-active');
-            let cap = 20000, wins = 0, total = 0, gP = 0, gL = 0; let mult = asset==='DAX'?25:(asset==='FTSEMIB'?5:10);
+
+            let cap = 20000, wins = 0, total = 0, gP = 0, gL = 0; 
+            let mult = asset==='DAX'?25:(asset==='FTSEMIB'?5:10);
             let hist = currentZoom > 0 ? assetData.history.slice(-currentZoom) : assetData.history;
             let eqD = [], idxD = [], lbl = [], rows = [];
+
             hist.forEach(h => {{
-                let p = 0; if (h.m > thr && h.v < 25) p = 1; else if (h.m < -thr && h.v < 32) p = -1;
-                if (p !== 0) {{ total++; let pts = p === 1 ? (h.out - h.in - 2) : (h.in - h.out - 2); let pnl = pts * mult; cap += pnl; if (pnl > 0) {{ wins++; gP += pnl; }} else {{ gL += Math.abs(pnl); }}
-                    rows.push(`<tr><td>${{h.d}}</td><td>${{p==1?t.sig[1]:t.sig[2]}}</td><td>${{h.in.toFixed(1)}}</td><td>${{h.out.toFixed(1)}}</td><td class="${{pts>=0?'text-success':'text-danger'}}">${{pts.toFixed(1)}}</td><td>${{Math.round(pnl)}}€</td></tr>`); }}
+                let p = 0; 
+                let m_h = h.m * 100; // Trasformo il momentum storico in numero intero per il confronto
+                if (m_h > thr && h.v < 25) p = 1; 
+                else if (m_h < -thr && h.v < 32) p = -1;
+
+                if (p !== 0) {{ 
+                    total++; 
+                    let pts = p === 1 ? (h.out - h.in - 2) : (h.in - h.out - 2); 
+                    let pnl = pts * mult; 
+                    cap += pnl; 
+                    if (pnl > 0) {{ wins++; gP += pnl; }} else {{ gL += Math.abs(pnl); }}
+                    rows.push(`<tr><td>${{h.d}}</td><td>${{p==1?t.sig[1]:t.sig[2]}}</td><td>${{h.in.toFixed(1)}}</td><td>${{h.out.toFixed(1)}}</td><td class="${{pts>=0?'text-success':'text-danger'}}">${{pts.toFixed(1)}}</td><td>${{Math.round(pnl)}}€</td></tr>`); 
+                }}
                 eqD.push(cap); idxD.push(h.out); lbl.push(h.d);
             }});
+
             document.getElementById('kpi-grid').innerHTML = `<div class="col-6"><div class="p-2 border border-secondary rounded text-center"><div class="val-big-label">${{t.kpi[0]}}</div><div class="text-success fw-bold">${{(cap-20000).toLocaleString()}}€</div></div></div><div class="col-6"><div class="p-2 border border-secondary rounded text-center"><div class="val-big-label">${{t.kpi[1]}}</div><div class="text-info fw-bold">${{total?((wins/total)*100).toFixed(1):0}}%</div></div></div>`;
             document.getElementById('pf-val').innerText = gL === 0 ? gP.toFixed(2) : (gP/gL).toFixed(2);
             document.getElementById('auditBody').innerHTML = rows.reverse().join('');
+
             if (myChart) myChart.destroy();
-            myChart = new Chart(document.getElementById('chart'), {{ data: {{ labels: lbl, datasets: [{{ type:'line', label:'Equity', data:eqD, borderColor:'#238636', yAxisID:'y', pointRadius:0, borderWidth:2.5, fill:true, backgroundColor:'rgba(35,134,54,0.05)' }},{{ type:'line', label:asset, data:idxD, borderColor:'rgba(241,196,15,0.4)', yAxisID:'y1', pointRadius:0, borderWidth:1.2 }}]}}, options: {{ responsive:true, maintainAspectRatio:false, scales:{{ y:{{ grid:{{color:'#161b22'}} }}, y1:{{ position:'right', grid:{{display:false}} }} }} }} }});
+            myChart = new Chart(document.getElementById('chart'), {{ 
+                data: {{ 
+                    labels: lbl, 
+                    datasets: [
+                        {{ type:'line', label:'Equity', data:eqD, borderColor:'#238636', yAxisID:'y', pointRadius:0, borderWidth:2.5, fill:true, backgroundColor:'rgba(35,134,54,0.05)' }},
+                        {{ type:'line', label:asset, data:idxD, borderColor:'rgba(241,196,15,0.4)', yAxisID:'y1', pointRadius:0, borderWidth:1.2 }}
+                    ]
+                }}, 
+                options: {{ 
+                    responsive:true, 
+                    maintainAspectRatio:false, 
+                    scales:{{ 
+                        y:{{ grid:{{color:'#161b22'}} }}, 
+                        y1:{{ position:'right', grid:{{display:false}} }} 
+                    }} 
+                }} 
+            }});
         }}
         function clock() {{ document.getElementById('clock').innerText = new Date().toLocaleTimeString('it-IT', {{timeZone:'Europe/Berlin'}}) + " CET"; }}
         setInterval(clock, 1000); window.onload = run;
