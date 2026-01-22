@@ -128,7 +128,7 @@ html_template = f"""
         <div class="col-xl-3">
             <div class="card-custom">
                 <h6 class="val-big-label mb-3">PARAMETRI</h6>
-                <input type="number" id="thr" class="form-control bg-dark text-white border-warning mb-3" value="0.30" step="0.05" oninput="run()">
+                <input type="number" id="thr" class="form-control bg-dark text-white border-warning mb-3" value="0.70" step="0.05" oninput="run()">
                 <div id="kpi-grid" class="row g-2"></div>
                 <div class="pf-box"><div class="val-big-label" style="color:#f1c40f">PROFIT FACTOR</div><div id="pf-val" class="h4 fw-bold mb-0" style="color:#f1c40f">--</div></div>
             </div>
