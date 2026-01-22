@@ -1,15 +1,20 @@
-name: QuantPro_AutoUpdate
+name: QuantPro_AutoUpdate_V8
 
 on:
   schedule:
-    - cron: '30 7 * * *'
+    # Esegue ogni giorno alle 08:30 italiane (07:30 UTC)
+    - cron: '1 8 * * *'
+  # Permette di lanciare l'aggiornamento manualmente dalla scheda Actions
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    
+    # Permessi necessari per permettere alla Action di salvare il file index.html
     permissions:
       contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -17,18 +22,26 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'  # <--- MODIFICATO DA 3.9 A 3.10
+          python-version: '3.10' # Indispensabile per le nuove versioni di yfinance
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
 
-      - name: Run Engine
+      - name: Run Engine (Genera la Dashboard)
         run: python quant_pro_engine.py
 
-      - name: Commit and Push
+      - name: Run Telegram Bot (Invia Segnali)
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python bot.py
+
+      - name: Commit and Push changes
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add index.html
-          git commit -m "Update Dashboard Data" || exit 0
+          # Il comando || exit 0 evita che la Action fallisca se non ci sono nuovi dati
+          git commit -m "V8.4.8: Update Dashboard and Telegram Report" || exit 0
           git push
